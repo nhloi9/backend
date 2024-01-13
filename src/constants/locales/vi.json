@@ -1,0 +1,18 @@
+{
+  "hello": "world",
+  "USER_EXISTED": "Tài khoản đã tồn tại",
+  "OAUTH_ERROR": "Đăng nhập lỗi",
+  "USER_UNAUTHENTICATED": "người dùng chưa xác thực",
+  "USER_NOT_FOUND": "không tìm thấy người dùng",
+  "USER_INCORECT_EMAIL_PASSWORD": "Email hoặc mật khẩu không đúng",
+  "FRIEND_REQUEST_DUPLICATE": "Yêu cầu kết bạn đã tồn tại",
+  "FRIEND_REQUEST_SUCCESS": " Yêu cầu kết bạn thành công",
+  "FRIEND_REQUEST_NOT_FOUND": "Yêu cầu kết bạn không tồn tại",
+  "FRIEND_REQUEST_DELETE_SUCCESS": "Hủy yêu cầu kết bạn thành công",
+  "USER_REGISTERED_SUCCESS": "Đăng ký thành công, vui lòng nhấn vào link đã được gửi tới email để mở khóa tài khoản ",
+  "USER_ACTIVE_SUCCESS": "Tài khoản đã được kích hoạt thành công",
+  "FRIEND_REQUEST_ACCEPT_SUCCESS": "Chấp nhận yêu cầu kết bạn thành công",
+  "FILE_NOT_PROVIDED": "Vui lòng tải lên tệp",
+  "USER_UPDATE_AVATAR_SUCCESS": "Cập nhật ảnh đại diện thành công",
+  "USER_UPDATE_COVER_IMAGE_SUCCESS": "Cập nhật ảnh bìa thành công"
+}

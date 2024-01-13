@@ -1,0 +1,18 @@
+{
+  "hello": "hello",
+  "USER_EXISTED": "User already exists",
+  "OAUTH_ERROR": "Auth error",
+  "USER_UNAUTHENTICATED": "User not authenticated",
+  "USER_NOT_FOUND": "User not found",
+  "USER_INCORECT_EMAIL_PASSWORD": "Email or passwor incorect",
+  "USER_ACTIVE_SUCCESS": "User active successfully",
+  "USER_REGISTERED_SUCCESS": "User registered successfully, please check your email to active acount",
+  "FRIEND_REQUEST_DUPLICATE": "Friend request already exists",
+  "FRIEND_REQUEST_SUCCESS": " Friend request successfully",
+  "FRIEND_REQUEST_NOT_FOUND": "Friend request not found",
+  "FRIEND_REQUEST_DELETE_SUCCESS": "Friend request deleted successfully",
+  "FRIEND_REQUEST_ACCEPT_SUCCESS": "Friend request accepted successfully",
+  "FILE_NOT_PROVIDED": "Please provide a file",
+  "USER_UPDATE_AVATAR_SUCCESS": "Update avatar successfully",
+  "USER_UPDATE_COVER_IMAGE_SUCCESS": "Update cover image successfully"
+}
