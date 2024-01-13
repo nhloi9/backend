@@ -13,6 +13,7 @@ import conversationRoutes from './conversation.route'
 import messageRoutes from './message.route '
 
 // "start": "nodemon src/index.ts",
+// "build": "yarn clean && npx tsc && yarn copy-files",
 
 const router = Router()
 

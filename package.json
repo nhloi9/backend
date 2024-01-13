@@ -4,7 +4,7 @@
   "main": "src/index.ts",
   "license": "MIT",
   "scripts": {
-    "build": "yarn clean && npx tsc && yarn copy-files",
+    "build": " tsc",
     "start": "nodemon ./dist/index.js",
     "lint": "eslint src/**/*.ts",
     "dev": "nodemon src/index.ts",
