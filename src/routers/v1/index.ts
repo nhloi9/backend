@@ -12,6 +12,8 @@ import notifyRoutes from './notify.route'
 import conversationRoutes from './conversation.route'
 import messageRoutes from './message.route '
 
+// "start": "nodemon src/index.ts",
+
 const router = Router()
 
 router.use((req: any, res: any, next: any) => {
