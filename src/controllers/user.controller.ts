@@ -199,7 +199,8 @@ export const login = async (
         .cookie('token', token, {
           maxAge: tokenSettings.expireTime * 1000,
           secure: true,
-          httpOnly: true
+          httpOnly: true,
+          sameSite: 'none'
         })
         .json(
           getApiResponse({
