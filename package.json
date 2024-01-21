@@ -5,7 +5,7 @@
   "license": "MIT",
   "scripts": {
     "build": "yarn clean && npx tsc && yarn copy-files",
-    "start": "nodemon src/index.ts",
+    "start": "node ./dist/index.ts",
     "lint": "eslint src/**/*.ts",
     "dev": "nodemon src/index.ts",
     "clean": "rimraf dist/",
