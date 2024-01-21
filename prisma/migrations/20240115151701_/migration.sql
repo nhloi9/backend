@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE "post_user_reacts" ADD COLUMN     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP;

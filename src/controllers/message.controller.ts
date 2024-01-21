@@ -104,17 +104,24 @@ export const getMessages = async (
   next: NextFunction
 ) => {
   try {
-    const { conversationId, limitPerPage = 100, cusor } = req.query
-    // console.log(typeof limitPerPage, typeof cusor)
-
-    const conversationMembers = await prisma.conversationMember.findMany({
+    const { conversationId, limitPerPage = 10, cusor } = req.query
+    const conversation = await prisma.conversation.findUnique({
       where: {
-        conversationId: Number(conversationId)
+        id: Number(conversationId),
+        members: {
+          some: { userId: (req.payload as any).id }
+        }
+      },
+      include: {
+        members: true
       }
     })
+    if (conversation === null) {
+      return res.status(400).json('Can not access this conversation')
+    }
 
     const messages = await messageRepo.getMessages(
-      conversationMembers.map((item: any) => item.id),
+      conversation.members.map((item: any) => item.id),
       Number(limitPerPage),
       Number(cusor)
     )

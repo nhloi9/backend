@@ -11,7 +11,8 @@ const createPost: schema = {
     feel: Joi.object(),
     location: Joi.object(),
     groupId: Joi.number(),
-    shareId: Joi.number()
+    shareId: Joi.number(),
+    hashtags: Joi.array()
   })
 }
 const reactPost: schema = {

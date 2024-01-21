@@ -14,7 +14,6 @@ import { tokenSettings, oauth2Settings, socketTokenSettings } from '../configs'
 import type { RequestPayload } from '../types'
 import { prisma } from '../database/postgres'
 import { error } from 'console'
-import { auth } from 'firebase-admin'
 
 export const registerUser = async (
   req: Request,
@@ -365,7 +364,7 @@ export const getOauthUrl = async (
     // )
     res.redirect(url)
   } catch (error) {
-    res.redirect('http://localhost:3000/signin')
+    res.redirect((process.env.CLIENT_URL as string) + '/signin')
     next(error)
   }
 }
@@ -422,10 +421,10 @@ export const getOauthToken = async (
         maxAge: tokenSettings.expireTime * 1000,
         httpOnly: true
       })
-      .redirect('http://localhost:3000')
+      .redirect(process.env.CLIENT_URL as string)
   } catch (error) {
     // console.log(error)
-    res.redirect('http://localhost:3000/signin')
+    res.redirect((process.env.CLIENT_URL as string) + 'signin')
   }
 }
 
@@ -842,19 +841,23 @@ export const search = async (
             name: true,
             url: true
           }
+        },
+        detail: {
+          select: {
+            country: true,
+            state: true
+          }
         }
       }
     })
-    // } else {
-    //   users = await prisma.user.findMany({
-    //     where: {
-    //       fullname: {
-    //         search: tokens.join('&')
-    //       }
-    //     }
-    //   })
-    // }
-    console.log(users)
+
+    const promisesArray = users.map(async (user: any) => {
+      const friends = await friendRepo.findAllFriends(user?.id)
+      user.friends = friends
+    })
+
+    await Promise.all(promisesArray)
+
     res.status(httpStatus.OK).json(getApiResponse({ data: { users } }))
   } catch (error) {
     next(error)
@@ -974,6 +977,31 @@ export const getAllStoriesOfUser = async (
       getApiResponse({
         data: {
           stories
+        }
+      })
+    )
+  } catch (error) {
+    next(error)
+  }
+}
+
+export const getAllUsers = async (
+  req: RequestPayload,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const users = await prisma.user.findMany({
+      where: {
+        role: {
+          not: 'admin'
+        }
+      }
+    })
+    res.status(httpStatus.OK).json(
+      getApiResponse({
+        data: {
+          users
         }
       })
     )

@@ -12,5 +12,9 @@ router
 
 router.get('/:id', verifyToken, controller.getConversation)
 router.put('/:id/seen', verifyToken, controller.seenConversation)
+router.put('/image', verifyToken, controller.updateAvatar)
+router.put('/name', verifyToken, controller.updateName)
+router.post('/members', verifyToken, controller.addMember)
+router.delete('/members/:memberId', verifyToken, controller.deleteMember)
 
 export default router

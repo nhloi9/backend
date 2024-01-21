@@ -5,8 +5,7 @@ import { groupRepo, notifyRepo, postRepo } from '../repositories'
 import type { RequestPayload } from '../types'
 import { getApiResponse } from '../utils'
 import { prisma } from '../database/postgres'
-import { checkIsAdmin, checkIsMember } from '../repositories/group'
-import { get } from 'lodash'
+// import { checkIsAdmin, checkIsMember } from '../repositories/group'
 
 export const createGroup = async (
   req: RequestPayload,
@@ -15,28 +14,22 @@ export const createGroup = async (
 ) => {
   const { name, privacy, invites } = req.body
   try {
-    const existingGroup = await prisma.group.findMany({
-      where: { name }
-    })
-    if (existingGroup?.length > 0) {
-      return res.status(400).json({
-        msg: 'Group name already exists'
-      })
-    }
     const group = await groupRepo.createGroup(
       name,
       privacy,
       (req.payload as any).id,
       invites
     )
-
     const invitesPromise = invites.map(async (userId: number): Promise<any> => {
       return await notifyRepo.createNotify({
         notifyData: {
           text: 'invite you join group',
-          url: `http://localhost:3000/groups/${group?.id as string}`,
-          type: 'iviteGroup',
-          target: {
+          url:
+            (process.env.CLIENT_URL as string) +
+            `/groups/${group?.id as string}`,
+          type: 'inviteGroup',
+          image: group.image?.url,
+          expandData: {
             name: group.name,
             image: group.image?.url
           }
@@ -49,6 +42,36 @@ export const createGroup = async (
     res.status(httpStatus.OK).json(
       getApiResponse({
         data: { group }
+      })
+    )
+  } catch (error) {
+    next(error)
+  }
+}
+
+export const updateGroup = async (
+  req: RequestPayload,
+  res: Response,
+  next: NextFunction
+) => {
+  const { id } = req.params
+  const { name, privacy, description } = req.body
+  try {
+    await prisma.group.update({
+      where: {
+        id: Number(id),
+        adminId: (req.payload as any).id
+      },
+      data: {
+        name,
+        privacy,
+        description
+      }
+    })
+
+    res.status(httpStatus.OK).json(
+      getApiResponse({
+        msg: 'Group updated successfully'
       })
     )
   } catch (error) {
@@ -163,7 +186,7 @@ export const createManyRequests = async (
       return await notifyRepo.createNotify({
         notifyData: {
           text: 'invite you join group',
-          url: `http://localhost:3000/groups/${groupId}`,
+          url: (process.env.CLIENT_URL as string) + `/groups/${groupId}`,
           type: 'inviteGroup',
           target: {
             name: group.name,
@@ -253,23 +276,6 @@ export const deleteRequest = async (
           getApiResponse({ msg: 'You are not allowed to delete this request' })
         )
     }
-
-    // const invitesPromise = invites.map(async (userId: number): Promise<any> => {
-    //   return await notifyRepo.createNotify({
-    //     notifyData: {
-    //       text: 'invite you join group',
-    //       url: `http://localhost:3000/groups/${groupId}`,
-    //       type: 'iviteGroup',
-    //       target: {
-    //         name: group.name,
-    //         image: group.image?.url
-    //       }
-    //     },
-    //     senderId: (req.payload as any).id,
-    //     receiverId: userId
-    //   })
-    // })
-    // await Promise.all(invitesPromise)
   } catch (error) {
     next(error)
   }
@@ -322,22 +328,6 @@ export const createSingleRequest = async (
       }
     })
 
-    // const invitesPromise = invites.map(async (userId: number): Promise<any> => {
-    //   return await notifyRepo.createNotify({
-    //     notifyData: {
-    //       text: 'invite you join group',
-    //       url: `http://localhost:3000/groups/${groupId}`,
-    //       type: 'iviteGroup',
-    //       target: {
-    //         name: group.name,
-    //         image: group.image?.url
-    //       }
-    //     },
-    //     senderId: (req.payload as any).id,
-    //     receiverId: userId
-    //   })
-    // })
-    // await Promise.all(invitesPromise)
     res.status(200).json(getApiResponse({ data: { request } }))
   } catch (error) {
     next(error)
@@ -382,6 +372,45 @@ export const getOwnGroups = async (
     const groups = await prisma.group.findMany({
       where: {
         adminId: (req.payload as any).id
+      },
+      include: {
+        image: {
+          select: {
+            url: true
+          }
+        }
+      }
+    })
+
+    res.status(200).json(getApiResponse({ data: { groups } }))
+  } catch (error) {
+    next(error)
+  }
+}
+
+export const search = async (
+  req: RequestPayload,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const q: any = req.query.q
+    const tokens: string[] = q
+      .trim()
+      // .normalize('NFD')
+      // .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase()
+      .split(' ')
+      .filter((token: string) => {
+        return token.trim().length > 0
+      })
+    const groups = await prisma.group.findMany({
+      where: {
+        AND: tokens.map(token => ({
+          name: {
+            contains: token
+          }
+        }))
       },
       include: {
         image: {
@@ -571,9 +600,50 @@ export const approvePosts = async (
         }
       },
       data: {
-        accepted: true
+        accepted: true,
+        createdAt: new Date()
       }
     })
+
+    const memberIds = (
+      await prisma.groupReqest.findMany({
+        where: {
+          groupId,
+          status: 'accepted'
+        }
+      })
+    ).map((item: any) => item?.userId)
+
+    for (const postId of postIds) {
+      const post = await prisma.post.findUnique({
+        where: {
+          id: postId
+        },
+        include: {
+          files: true
+        }
+      })
+      const invitesPromise = memberIds
+        .filter((id: number) => id !== post?.userId)
+        .map(async (memberId: number): Promise<any> => {
+          return await notifyRepo.createNotify({
+            notifyData: {
+              text: 'posted in',
+              url:
+                (process.env.CLIENT_URL as string) +
+                `/post/${postId as string}`,
+              type: 'postGroup',
+              image: post?.files[0]?.thumbnail ?? post?.files[0]?.url,
+              expandData: {
+                name: group.name
+              }
+            },
+            senderId: post?.userId,
+            receiverId: memberId
+          })
+        })
+      await Promise.all(invitesPromise)
+    }
 
     res.status(200).json(getApiResponse({ msg: 'Approve posts successfully' }))
   } catch (error) {

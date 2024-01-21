@@ -39,3 +39,17 @@ export const verifyToken = async (
       .json(getApiResponse(messages.ACCESS_TOKEN_INVALID))
   }
 }
+
+export const checkAdmin = async (
+  req: RequestPayload,
+  res: Response,
+  next: any
+) => {
+  if (req.payload !== undefined && (req.payload as any).role === 'admin') {
+    next()
+  } else {
+    res
+      .status(httpStatus.UNAUTHORIZED)
+      .json(getApiResponse({ msg: 'not permission to access this api' }))
+  }
+}

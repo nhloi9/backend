@@ -1,15 +1,12 @@
 import { type Response, type NextFunction } from 'express'
 import httpStatus from 'http-status'
-// import tf from '@tensorflow/tfjs-node'
-// import use from '@tensorflow-models/universal-sentence-encoder';
 
 import _ from 'lodash'
 
-import { postRepo } from '../repositories'
+import { friendRepo, notifyRepo, postRepo } from '../repositories'
 import type { RequestPayload } from '../types'
 import { getApiResponse } from '../utils'
 import { prisma } from '../database/postgres'
-import { checkIsFriend } from '../repositories/friend'
 import { use } from 'passport'
 
 export const createPost = async (
@@ -17,8 +14,17 @@ export const createPost = async (
   res: Response,
   next: NextFunction
 ) => {
-  const { text, files, feel, location, tags, groupId, privacy, shareId } =
-    req.body
+  const {
+    text,
+    files,
+    feel,
+    location,
+    tags,
+    groupId,
+    privacy,
+    shareId,
+    hashtags
+  } = req.body
   const userId = (req.payload as any).id
   try {
     const group =
@@ -38,12 +44,38 @@ export const createPost = async (
       ...(groupId !== undefined && {
         accepted: group?.adminId === userId
       }),
-      shareId
+      shareId,
+      hashtags
     })
     if (post?.shareId !== null) {
       const share = await postRepo.getSinglePost(userId, post.shareId)
       post.share = share
     }
+
+    if (
+      post.accepted === true &&
+      post.group === null &&
+      post.privacy !== 'private'
+    ) {
+      const friendIds = await friendRepo.findAllFriendIds(userId)
+
+      const invitesPromise = friendIds.map(async (id: number): Promise<any> => {
+        return await notifyRepo.createNotify({
+          notifyData: {
+            text: 'added a new post',
+            url:
+              (process.env.CLIENT_URL as string) +
+              `/post/${post?.id as string}`,
+
+            image: post.files[0]?.thumbnail ?? post.files[0]?.url
+          },
+          senderId: userId,
+          receiverId: id
+        })
+      })
+      await Promise.all(invitesPromise)
+    }
+
     res.status(httpStatus.OK).json(
       getApiResponse({
         data: { post }
@@ -60,7 +92,7 @@ export const updatePost = async (
   next: NextFunction
 ) => {
   const userId = (req.payload as any).id
-  const { text, files, feel, location, tags, groupId } = req.body
+  const { text, files, feel, location, tags, hashtags, privacy } = req.body
 
   try {
     const oldPost = await prisma.post.findFirst({
@@ -77,6 +109,7 @@ export const updatePost = async (
       })
     }
     const post = await postRepo.updatePost({
+      privacy,
       postId: Number(req.params.id),
       userId: (req.payload as any).id,
       text,
@@ -84,6 +117,7 @@ export const updatePost = async (
       location,
       files,
       tags,
+      hashtags,
       accepted:
         oldPost.groupId !== null && oldPost.group?.adminId !== userId
           ? false
@@ -106,18 +140,164 @@ export const getHomePosts = async (
 ) => {
   try {
     const userId = (req.payload as any).id
-    const { oldPosts } = req.body
-    let posts = await postRepo.getPosts(oldPosts)
-    posts = posts.map((post: any, index: number) => {
-      return {
-        ...post
 
-        // ...(numberComments > 5 && {
-        //   sampleComment: _.sampleSize(
-        //     post.comments,
-        //     Math.floor(Math.random() * 4)
-        //   )
-        // })
+    const friendIds = await friendRepo.findAllFriendIds(userId)
+    // const { oldPosts } = req.body
+    // let posts = await postRepo.getPosts(oldPosts)
+    // posts = posts.map((post: any, index: number) => {
+    //   return {
+    //     ...post
+
+    //     // ...(numberComments > 5 && {
+    //     //   sampleComment: _.sampleSize(
+    //     //     post.comments,
+    //     //     Math.floor(Math.random() * 4)
+    //     //   )
+    //     // })
+    //   }
+    // })
+    // for (const post of posts) {
+    //   if (post?.shareId !== null) {
+    //     const share = await postRepo.getSinglePost(userId, post.shareId)
+    //     post.share = share
+    //   }
+    // }
+
+    const posts: any = await prisma.post.findMany({
+      where: {
+        OR: [
+          {
+            group: {
+              OR: [
+                { adminId: userId },
+                {
+                  requests: {
+                    some: {
+                      userId,
+                      status: 'accepted'
+                    }
+                  }
+                }
+              ]
+            }
+          },
+          {
+            groupId: null,
+            userId: {
+              in: friendIds
+            },
+            privacy: {
+              not: 'private'
+            }
+          },
+          {
+            userId
+          },
+          {
+            privacy: 'public'
+          }
+        ],
+        accepted: true
+      },
+      include: {
+        hashtags: true,
+        shareBys: {
+          select: {
+            createdAt: true,
+
+            id: true,
+            user: {
+              select: {
+                id: true,
+                firstname: true,
+                lastname: true,
+                avatar: true
+              }
+            }
+          },
+          orderBy: {
+            createdAt: 'desc'
+          }
+        },
+        files: true,
+        user: {
+          select: {
+            id: true,
+            firstname: true,
+            lastname: true,
+            avatar: true
+          }
+        },
+        reacts: {
+          include: {
+            react: true,
+            user: {
+              select: {
+                id: true,
+                firstname: true,
+                lastname: true,
+                avatar: true
+              }
+            }
+          }
+        },
+        group: {
+          select: {
+            id: true,
+            name: true,
+            description: true,
+            privacy: true,
+            image: true
+          }
+        },
+        comments: {
+          include: {
+            sender: {
+              select: {
+                id: true,
+                firstname: true,
+                lastname: true,
+                avatar: {
+                  select: { name: true, url: true }
+                }
+              }
+            },
+            receiver: {
+              select: {
+                id: true,
+                firstname: true,
+                lastname: true,
+                avatar: {
+                  select: { name: true, url: true }
+                }
+              }
+            },
+            reacts: {
+              include: {
+                user: {
+                  select: {
+                    id: true,
+                    firstname: true,
+                    lastname: true,
+                    avatar: true
+                  }
+                }
+              }
+            }
+          },
+
+          orderBy: {
+            createdAt: 'desc'
+          }
+        },
+        tags: {
+          select: {
+            id: true,
+            firstname: true,
+            lastname: true,
+            avatar: true
+          }
+        }
       }
     })
     for (const post of posts) {
@@ -129,7 +309,7 @@ export const getHomePosts = async (
     res.status(httpStatus.OK).json(
       getApiResponse({
         data: {
-          posts: _.sampleSize(posts, 10)
+          posts: _.sampleSize(posts, 20)
         }
       })
     )
@@ -258,6 +438,7 @@ export const reactPost = async (
         userId
       }
     })
+
     res.status(httpStatus.OK).json({ msg: 'react post successfully' })
   } catch (error) {
     next(error)
@@ -495,6 +676,7 @@ export const getSavePosts = async (
         }
       },
       include: {
+        hashtags: true,
         shareBys: {
           select: {
             createdAt: true,
@@ -613,9 +795,6 @@ export const getSavePosts = async (
     next(error)
   }
 }
-// function getPostsByFriend (userId: number) {}
-// function getPostsByLike (userId: number) {}
-// function getPostsBy
 
 export const searchPosts = async (
   req: RequestPayload,
@@ -623,8 +802,18 @@ export const searchPosts = async (
   next: NextFunction
 ) => {
   try {
-    const { q } = req.query
-    const userId = Number((req.payload as any).id)
+    const q: any = req.query.q
+    console.log({ q })
+    const tokens: string[] = q
+      .trim()
+      // .normalize('NFD')
+      // .replace(/[\u0300-\u036f]/g, '')
+      // .toLowerCase()
+      .split(' ')
+      .filter((token: string) => {
+        return token.trim().length > 0
+      })
+
     const posts = await prisma.post.findMany({
       where: {
         OR: [
@@ -639,11 +828,12 @@ export const searchPosts = async (
           }
         ],
         text: {
-          search: q as string
+          search: tokens.join(' & ')
         },
         accepted: true
       },
       include: {
+        hashtags: true,
         shareBys: {
           select: {
             createdAt: true,
@@ -744,23 +934,556 @@ export const searchPosts = async (
       orderBy: {
         _relevance: {
           fields: ['text'],
-          search: q as string,
+          search: tokens.join(' & '),
           sort: 'asc'
         }
       }
     })
 
-    // for (const post of posts) {
-    //   if (post?.shareId !== null) {
-    //     const share = await postRepo.getSinglePost(userId, post.shareId)
-    //     post.share = share
-    //   }
-    // }
     res.status(httpStatus.OK).json(
       getApiResponse({
         data: {
           posts
         }
+      })
+    )
+  } catch (error) {
+    next(error)
+  }
+}
+
+export const getDiscoverPosts = async (
+  req: RequestPayload,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const userId = (req.payload as any).id
+
+    const today = new Date()
+
+    const dayOfWeek = today.getDay()
+    const difference = today.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1)
+    const startOfWeek = new Date(today.setDate(difference))
+    startOfWeek.setHours(0, 0, 0, 0)
+
+    const reactsOfWeek = await prisma.postUserReact.findMany({
+      where: {
+        createdAt: {
+          gte: startOfWeek
+        },
+        react: {
+          id: {
+            in: [1, 2, 3, 4, 5]
+          }
+        },
+        post: {
+          OR: [
+            {
+              groupId: null,
+              privacy: 'public'
+            },
+            {
+              group: {
+                privacy: 'public'
+              },
+              accepted: true
+            }
+          ]
+        }
+      }
+    })
+
+    const postIds: any = {}
+    reactsOfWeek.forEach((react: any) => {
+      if (postIds[react.postId] !== undefined) {
+        postIds[react.postId] = (postIds[react.postId] as number) + 1
+      } else postIds[react.postId] = 1
+    })
+
+    const topIds = Object.keys(postIds)
+      .sort((a: string, b: string) => {
+        return postIds[b] - postIds[a]
+      })
+      .slice(0, 20)
+
+    const posts: any = await prisma.post.findMany({
+      where: {
+        id: { in: topIds.map((id: string) => Number(id)) }
+      },
+
+      include: {
+        hashtags: true,
+        shareBys: {
+          select: {
+            createdAt: true,
+
+            id: true,
+            user: {
+              select: {
+                id: true,
+                firstname: true,
+                lastname: true,
+                avatar: true
+              }
+            }
+          },
+          orderBy: {
+            createdAt: 'desc'
+          }
+        },
+        files: true,
+        user: {
+          select: {
+            id: true,
+            firstname: true,
+            lastname: true,
+            avatar: true
+          }
+        },
+        reacts: {
+          include: {
+            react: true,
+            user: {
+              select: {
+                id: true,
+                firstname: true,
+                lastname: true,
+                avatar: true
+              }
+            }
+          }
+        },
+        group: {
+          select: {
+            id: true,
+            name: true,
+            description: true,
+            privacy: true,
+            image: true
+          }
+        },
+        comments: {
+          include: {
+            sender: {
+              select: {
+                id: true,
+                firstname: true,
+                lastname: true,
+                avatar: {
+                  select: { name: true, url: true }
+                }
+              }
+            },
+            receiver: {
+              select: {
+                id: true,
+                firstname: true,
+                lastname: true,
+                avatar: {
+                  select: { name: true, url: true }
+                }
+              }
+            },
+            reacts: {
+              include: {
+                user: {
+                  select: {
+                    id: true,
+                    firstname: true,
+                    lastname: true,
+                    avatar: true
+                  }
+                }
+              }
+            }
+          },
+
+          orderBy: {
+            createdAt: 'desc'
+          }
+        },
+        tags: {
+          select: {
+            id: true,
+            firstname: true,
+            lastname: true,
+            avatar: true
+          }
+        }
+      },
+      orderBy: {
+        createdAt: 'desc'
+      }
+    })
+    for (const post of posts) {
+      if (post?.shareId !== null) {
+        const share = await postRepo.getSinglePost(userId, post.shareId)
+        post.share = share
+      }
+    }
+
+    res.status(httpStatus.OK).json(
+      getApiResponse({
+        data: {
+          posts
+        }
+      })
+    )
+  } catch (error) {
+    res.status(httpStatus.OK).json(
+      getApiResponse({
+        data: {
+          posts: []
+        }
+      })
+    )
+  }
+}
+
+export const createReport = async (
+  req: RequestPayload,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const userId = (req.payload as any).id
+    const postId = Number(req.params.id)
+    const { type } = req.body
+
+    await prisma.report.upsert({
+      where: {
+        userId_postId: {
+          userId,
+          postId
+        }
+      },
+      update: {
+        type
+      },
+      create: {
+        userId,
+        postId,
+        type
+      }
+    })
+
+    res.status(httpStatus.OK).json(
+      getApiResponse({
+        data: { msg: 'Report successfully' }
+      })
+    )
+  } catch (error) {
+    next(error)
+  }
+}
+
+export const getReportedPosts = async (
+  req: RequestPayload,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const user: any = req.payload
+    if (user?.role !== 'admin') {
+      return res.status(400).json({
+        msg: 'can not access to admin'
+      })
+    }
+
+    let posts: any = await prisma.post.findMany({
+      where: {
+        NOT: {
+          reports: {
+            none: {}
+          }
+        }
+      },
+
+      include: {
+        hashtags: true,
+        reports: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                firstname: true,
+                lastname: true,
+                avatar: true
+              }
+            }
+          },
+
+          orderBy: {
+            updatedAt: 'desc'
+          }
+        },
+        shareBys: {
+          select: {
+            createdAt: true,
+
+            id: true,
+            user: {
+              select: {
+                id: true,
+                firstname: true,
+                lastname: true,
+                avatar: true
+              }
+            }
+          },
+          orderBy: {
+            createdAt: 'desc'
+          }
+        },
+        group: {
+          select: {
+            id: true,
+            name: true,
+            description: true,
+            privacy: true,
+            image: true
+          }
+        },
+        files: true,
+        user: {
+          select: {
+            id: true,
+            firstname: true,
+            lastname: true,
+            avatar: true
+          }
+        },
+        reacts: {
+          include: {
+            react: true,
+            user: {
+              select: {
+                id: true,
+                firstname: true,
+                lastname: true,
+                avatar: true
+              }
+            }
+          }
+        },
+        comments: {
+          include: {
+            sender: {
+              select: {
+                id: true,
+                firstname: true,
+                lastname: true,
+                avatar: {
+                  select: { name: true, url: true }
+                }
+              }
+            },
+            receiver: {
+              select: {
+                id: true,
+                firstname: true,
+                lastname: true,
+                avatar: {
+                  select: { name: true, url: true }
+                }
+              }
+            },
+            reacts: {
+              include: {
+                user: {
+                  select: {
+                    id: true,
+                    firstname: true,
+                    lastname: true,
+                    avatar: true
+                  }
+                }
+              }
+            }
+          },
+          orderBy: {
+            createdAt: 'desc'
+          }
+        },
+        tags: {
+          select: {
+            id: true,
+            firstname: true,
+            lastname: true,
+            avatar: true
+          }
+        }
+      }
+    })
+    console.log({ posts })
+
+    posts = posts.sort(
+      (a: any, b: any) =>
+        new Date(b.reports[0].updatedAt).getTime() -
+        new Date(a.reports[0].updatedAt).getTime()
+    )
+
+    const userId = Number((req.payload as any).id)
+
+    for (const post of posts) {
+      if (post?.shareId !== null) {
+        const share = await postRepo.getSinglePost(userId, post.shareId)
+        post.share = share
+      }
+    }
+
+    res.status(httpStatus.OK).json(
+      getApiResponse({
+        data: {
+          posts
+        }
+      })
+    )
+  } catch (error) {
+    next(error)
+  }
+}
+
+export const getHashtagdPosts = async (
+  req: RequestPayload,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const userId = (req.payload as any).id
+    const { hashtag } = req.query
+
+    const posts: any = await prisma.post.findMany({
+      where: {
+        accepted: true,
+        hashtags: {
+          some: {
+            name: hashtag as string
+          }
+        }
+      }
+    })
+
+    const returnedPosts = []
+    for (const post of posts) {
+      const returnedPost = await postRepo.getSinglePost(userId, post.id)
+      if (post !== null) returnedPosts.push(returnedPost)
+    }
+
+    res.status(httpStatus.OK).json(
+      getApiResponse({
+        data: {
+          posts: returnedPosts
+        }
+      })
+    )
+  } catch (error) {
+    next(error)
+  }
+}
+
+export const keepReportedPost = async (
+  req: RequestPayload,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const user: any = req.payload
+    const { id } = req.params
+    if (user?.role !== 'admin') {
+      return res.status(400).json({
+        msg: 'can not access to admin'
+      })
+    }
+
+    await prisma.report.deleteMany({
+      where: {
+        postId: Number(id)
+      }
+    })
+    res.status(httpStatus.OK).json(
+      getApiResponse({
+        msg: 'Keep the report successfully'
+      })
+    )
+  } catch (error) {
+    next(error)
+  }
+}
+
+export const deletePost = async (
+  req: RequestPayload,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const userId = (req.payload as any).id
+    const { id } = req.params
+    const post = await prisma.post.findUnique({
+      where: {
+        id: Number(id)
+      },
+      include: {
+        group: true
+      }
+    })
+    if (post === null) {
+      return res.status(400).json(getApiResponse({ msg: 'Post not found' }))
+    }
+    if (
+      post.userId !== userId &&
+      (req.payload as any).role !== 'admin' &&
+      post?.group?.adminId !== userId
+    ) {
+      return res.status(400).json(
+        getApiResponse({
+          msg: 'You do not have permission'
+        })
+      )
+    }
+    await prisma.post.delete({
+      where: {
+        id: Number(req.params.id)
+      }
+    })
+    res.status(httpStatus.OK).json(
+      getApiResponse({
+        msg: 'Delete the post successfully'
+      })
+    )
+  } catch (error) {
+    next(error)
+  }
+}
+
+export const getAllHashtags = async (
+  req: RequestPayload,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const hashtags = await prisma.hashtag.findMany({
+      include: {
+        _count: {
+          select: {
+            posts: {
+              where: {
+                accepted: true
+              }
+            }
+          }
+        }
+      },
+      orderBy: {
+        posts: {
+          _count: 'desc'
+        }
+      }
+    })
+    res.status(httpStatus.OK).json(
+      getApiResponse({
+        data: { hashtags }
       })
     )
   } catch (error) {

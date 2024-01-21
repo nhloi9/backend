@@ -11,6 +11,8 @@ import groupRoutes from './group.route'
 import notifyRoutes from './notify.route'
 import conversationRoutes from './conversation.route'
 import messageRoutes from './message.route '
+import statisticRoutes from './statistic.route'
+import adminRoutes from './admin.route'
 
 // "start": "nodemon src/index.ts",
 // "build": "yarn clean && npx tsc && yarn copy-files",
@@ -42,6 +44,8 @@ router.use('/reacts', reactRoutes)
 router.use('/notifies', notifyRoutes)
 router.use('/conversations', conversationRoutes)
 router.use('/messages', messageRoutes)
+router.use('/statistics', statisticRoutes)
+router.use('/admins', adminRoutes)
 // router.get('/link-preview', (async (req: any, res: any): Promise<any> => {
 //   try {
 //     getLinkPreview('https://www.youtube.com/watch?v=wcIGvCz3eKw', {

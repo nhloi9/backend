@@ -147,7 +147,9 @@ export const createRequestFriend = async (
       .createNotify({
         notifyData: {
           text: 'sent you a friend request',
-          url: `http://localhost:3000/profile/${senderId as string}`,
+          url:
+            (process.env.CLIENT_URL as string) +
+            `/profile/${senderId as string}`,
           type: 'createRequestFriend'
         },
         senderId: (req.payload as any).id,

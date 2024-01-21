@@ -13,7 +13,9 @@ datasource db {
 
 model User {
   id       Int @id @default(autoincrement())
+  
   savedPost Post[] @relation("save")
+  active Boolean @default(true)
   
   avatar File? 
   firstname String 
@@ -45,6 +47,8 @@ model User {
   commentsStory CommentStory[]
   taggedPosts Post[] @relation("tag")
 
+  lastOnline DateTime @default(now())
+
   reactMessages MessageReact[]
   reports Report[]
 
@@ -66,6 +70,16 @@ model UserDetail {
   phone String?
   gender gender?
   @@map("user_details")
+}
+
+model onlineUser {
+  id Int @id @default(autoincrement())
+
+
+  month Int
+  year Int
+  @@unique([month, year])
+  numberOfOnlineUsers Int?
 }
 model ResetPasswordCode {
   id Int @id @default(autoincrement())
@@ -94,6 +108,8 @@ model FriendRequest {
 
 model File {
   id Int @id @default(autoincrement())
+  conversationId Int? @unique
+  conversation Conversation? @relation(fields: [conversationId], references: [id], onDelete: SetNull)
   avatarOfUserId Int? @unique
   avatarOfUser User?  @relation(fields: [avatarOfUserId], references: [id], onDelete: Cascade)
   coverImageOfUserDetail UserDetail? @relation(fields: [coverImageOfUserDetailId], references: [id], onDelete: SetNull)
@@ -116,6 +132,7 @@ model File {
 }
 
 model Post {
+
   id Int @id @default(autoincrement())
   text String?
   userId Int
@@ -138,6 +155,7 @@ model Post {
   group Group? @relation(fields: [groupId], references: [id], onDelete: Cascade)
   reports Report[]
   saveBys User[] @relation("save")
+  hashtags Hashtag[]
 
   @@map("posts")
 }
@@ -147,7 +165,7 @@ model Post {
 
 model Group {
   id Int @id @default(autoincrement())
-  name String @unique
+  name String 
   description String?
   privacy  accessGroup
   requireApproval Boolean @default(true)
@@ -194,6 +212,7 @@ model Conversation {
   name String?
   members ConversationMember[]
   lastMessage Json?
+  image File?
    @@map("conversations")
    updatedAt DateTime @updatedAt
 }
@@ -239,6 +258,7 @@ model React {
   name String
   icon String
   posts PostUserReact[]
+  
    @@map("reacts")
 
    stories ReactStory[]
@@ -253,9 +273,10 @@ model Notification {
   isSeen Boolean @default(false)
   content  String?
   text String?
+  image String?
   url String?
   type String?
-  target Json?
+  expandData Json?
   createdAt DateTime @default(now())
 
 
@@ -303,6 +324,7 @@ model PostUserReact {
   postId Int
   userId Int
   reactId Int
+  createdAt DateTime @default(now())
   post Post @relation(references: [id], fields: [postId], onDelete: Cascade)
   react React @relation(references: [id], fields: [reactId], onDelete: Cascade)
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -379,10 +401,22 @@ model Report {
   post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
   type  report
   files File[]
+   createdAt DateTime @default(now())
+   updatedAt DateTime @updatedAt  
   description String?
+  @@unique([userId, postId])
 
   @@map("reports")
 
+}
+
+model Hashtag {
+  id Int @id @default(autoincrement())
+  name String @unique
+  createdAt DateTime @default(now())
+  posts Post[]
+
+  @@map("hashtags")
 }
 
 // model  ViewStory {
@@ -433,13 +467,19 @@ enum commentReact {
 
 
 enum notify {
-  iviteGroup
+  inviteGroup
 
 }
 
 enum report {
-  negative
+  violence
   spam
-  fake
+  harassment
+  hate
+  nudity
+  false
+  terrorism
 }
+
+
 

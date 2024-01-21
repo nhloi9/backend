@@ -185,6 +185,40 @@ export const updateComment = async (
   }
 }
 
+export const deleteComment = async (
+  req: RequestPayload,
+  res: Response,
+  next: NextFunction
+) => {
+  const { id } = req.params
+  const userId = (req.payload as any).id
+
+  try {
+    await prisma.comment.delete({
+      where: {
+        id: Number(id),
+        OR: [
+          {
+            senderId: userId
+          },
+          {
+            post: {
+              userId
+            }
+          }
+        ]
+      }
+    })
+    res.status(httpStatus.OK).json(
+      getApiResponse({
+        msg: 'Delete comment successfully'
+      })
+    )
+  } catch (error) {
+    next(error)
+  }
+}
+
 export const reactComment = async (
   req: RequestPayload,
   res: Response,

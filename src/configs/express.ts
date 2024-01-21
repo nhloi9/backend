@@ -11,6 +11,7 @@ import cookieParser from 'cookie-parser'
 import { createServer } from 'http'
 import { Server } from 'socket.io'
 import { PeerServer } from 'peer'
+import schedule from 'node-schedule'
 
 import { emitter } from './event-emitter'
 import { vars } from './vars'
@@ -19,17 +20,8 @@ import database from '../database'
 import routerV1 from '../routers/v1'
 import { notFound, errorConverter } from '../middlewares'
 import { soketRoute } from '../routers/v1/socket.route'
-
-// const whitelist = ['http://localhost:3000']
-// const corsOptions = {
-//   origin: function (origin: any, callback: any) {
-//     if (whitelist.includes(origin)) {
-//       callback(null, true)
-//     } else {
-//       callback(new Error('Not allowed by CORS'))
-//     }
-//   }
-// }
+import { prisma } from '../database/postgres'
+import { getStartDateOfMonth } from '../utils'
 
 const app: Express = express()
 const httpServer = createServer(app)
@@ -37,21 +29,13 @@ const httpServer = createServer(app)
 const io = new Server(httpServer, {
   /* options */
   cors: {
-    origin: 'http://localhost:3000',
+    origin: process.env.CLIENT_URL,
     methods: ['GET', 'POST']
   }
 })
 
 PeerServer({ port: 9000, path: '/' })
 
-// const haltOnTimedout = (req: Request, _res: Response, next: any): void => {
-//   if (!req.timedout) {
-//     next()
-//   }
-//   // else {
-//   //   next(new Error('Timed out'))
-//   // }
-// }
 const i18n = new I18n()
 
 i18n.configure({
@@ -63,11 +47,41 @@ i18n.configure({
 const initApp = (app: express.Express, io: Server): void => {
   soketRoute(io)
 
-  // app.use((req: any, res: any, next: any) => {
-  //   console.log(req.url)
-  //   next()
-  // })
+  const rule = new schedule.RecurrenceRule()
+  rule.hour = 12
+  rule.minute = 12
+  rule.tz = 'Etc/UTC'
+  schedule.scheduleJob(rule, async () => {
+    console.log('lddlld')
+    try {
+      const numberOfOnlineUsers = await prisma.user.count({
+        where: {
+          lastOnline: {
+            gte: getStartDateOfMonth(0)
+          }
+        }
+      })
 
+      await prisma.onlineUser.upsert({
+        where: {
+          month_year: {
+            month: new Date().getUTCMonth() + 1,
+            year: new Date().getUTCFullYear()
+          }
+        },
+        update: {
+          numberOfOnlineUsers
+        },
+        create: {
+          month: new Date().getUTCMonth() + 1,
+          year: new Date().getUTCFullYear(),
+          numberOfOnlineUsers
+        }
+      })
+    } catch (error) {
+      console.log(error)
+    }
+  })
   app.use(timeout('50s'))
   app.use(morgan('dev'))
   app.use(bodyParser.json())
@@ -77,14 +91,7 @@ const initApp = (app: express.Express, io: Server): void => {
   app.use(
     cors({
       credentials: true,
-      origin: 'http://localhost:3000'
-      //  function (origin: any, callback: any) {
-      //   if (whitelist.includes(origin)) {
-      //     callback(null, true)
-      //   } else {
-      //     callback(new Error('Not allowed by CORS'))
-      //   }
-      // }
+      origin: process.env.CLIENT_URL
     })
   )
   app.use(cookieParser())

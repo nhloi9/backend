@@ -8,6 +8,7 @@ const router = Router()
 
 router.post('/', verifyToken, validation.createGroup, controller.createGroup)
 router.get('/own', verifyToken, controller.getOwnGroups)
+router.get('/search', verifyToken, controller.search)
 
 router.post(
   '/requests/invite',
@@ -31,6 +32,7 @@ router
   .delete(verifyToken, controller.deleteRequest)
 
 router.get('/:id', verifyToken, controller.getGroup)
+router.put('/:id', verifyToken, controller.updateGroup)
 router.get('/:id/pending-posts', verifyToken, controller.getPendingPosts)
 router.get('/:id/files', verifyToken, controller.getAllFilesOfGroup)
 

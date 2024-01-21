@@ -117,6 +117,25 @@ export const findAllFriends = async (userId: number): Promise<any[]> => {
   )
 }
 
+export const findAllFriendIds = async (userId: number): Promise<any[]> => {
+  const requests = await prisma.friendRequest.findMany({
+    where: {
+      OR: [
+        {
+          senderId: userId
+        },
+        {
+          receiverId: userId
+        }
+      ],
+      status: 'accepted'
+    }
+  })
+  return requests.map((req: any) =>
+    req?.senderId === userId ? req?.receiverId : req?.senderId
+  )
+}
+
 // export const findSendRequests = async (senderId: number): Promise<any> => {
 //   return await prisma.friendRequest.findMany({
 //     where: {

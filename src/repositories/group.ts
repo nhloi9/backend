@@ -120,6 +120,12 @@ const getGroup = async (groupId: number): Promise<any> => {
                   name: true,
                   url: true
                 }
+              },
+              createdAt: true,
+              detail: {
+                select: {
+                  gender: true
+                }
               }
             }
           }

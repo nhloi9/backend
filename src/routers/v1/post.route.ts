@@ -11,8 +11,12 @@ router
   .post(validation.createPost, verifyToken, controller.createPost)
 
 router.get('/home', verifyToken, controller.getHomePosts)
+router.get('/hashtags', verifyToken, controller.getAllHashtags)
+router.get('/hashtag', verifyToken, controller.getHashtagdPosts)
+router.get('/report', verifyToken, controller.getReportedPosts)
 router.get('/save', verifyToken, controller.getSavePosts)
 router.get('/search', verifyToken, controller.searchPosts)
+router.get('/top', verifyToken, controller.getDiscoverPosts)
 
 router.get('/user/:id', verifyToken, controller.getUserPosts)
 router.get('/group/feed', verifyToken, controller.groupFeedPosts)
@@ -25,9 +29,13 @@ router
 
 router.route('/:id/save').post(verifyToken, controller.savePost)
 router.route('/:id/un-save').post(verifyToken, controller.unsavePost)
+router.route('/:id/report').post(verifyToken, controller.createReport)
+router.route('/:id/keep').post(verifyToken, controller.keepReportedPost)
 
 router
   .route('/:id')
   .put(verifyToken, controller.updatePost)
   .get(verifyToken, controller.getSinglePost)
+  .delete(verifyToken, controller.deletePost)
+
 export default router

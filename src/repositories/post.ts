@@ -7,6 +7,7 @@ import { groupRepo } from '.'
 const createPost = async ({
   files = [],
   tags = [],
+  hashtags = [],
 
   ...postData
 }: any): Promise<any> => {
@@ -25,9 +26,20 @@ const createPost = async ({
             id
           }))
         }
+      }),
+      ...(hashtags?.length > 0 && {
+        hashtags: {
+          connectOrCreate: hashtags.map((hashtag: string) => {
+            return {
+              where: { name: hashtag },
+              create: { name: hashtag }
+            }
+          })
+        }
       })
     },
     include: {
+      hashtags: true,
       shareBys: {
         select: {
           id: true,
@@ -129,6 +141,7 @@ const updatePost = async ({
   files = [],
   tags = [],
   postId,
+  hashtags = [],
   ...postData
 }: any): Promise<any> => {
   const newPost = await prisma.post.update({
@@ -150,9 +163,21 @@ const updatePost = async ({
         connect: tags.map((id: number) => ({
           id
         }))
-      }
+      },
+      ...(hashtags?.length > 0 && {
+        hashtags: {
+          set: [],
+          connectOrCreate: hashtags.map((hashtag: string) => {
+            return {
+              where: { name: hashtag },
+              create: { name: hashtag }
+            }
+          })
+        }
+      })
     },
     include: {
+      hashtags: true,
       shareBys: {
         select: {
           createdAt: true,
@@ -311,6 +336,7 @@ const getPosts = async (oldPosts: any): Promise<any> => {
           comments: true
         }
       },
+      hashtags: true,
       shareBys: {
         select: {
           createdAt: true,
@@ -425,6 +451,7 @@ const getAllPostsOfUser = async (
     },
 
     include: {
+      hashtags: true,
       shareBys: {
         select: {
           createdAt: true,
@@ -546,6 +573,7 @@ const getAllPostsOfGroup = async (
     where: { groupId, accepted: true },
 
     include: {
+      hashtags: true,
       shareBys: {
         select: {
           createdAt: true,
@@ -667,6 +695,7 @@ const getSinglePost = async (userId: number, postId: number): Promise<any> => {
       id: postId
     },
     include: {
+      hashtags: true,
       shareBys: {
         select: {
           createdAt: true,

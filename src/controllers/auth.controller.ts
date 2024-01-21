@@ -36,7 +36,7 @@ export const getOauthUrl = async (
     // )
     res.redirect(url)
   } catch (error) {
-    res.redirect('http://localhost:3000/signin')
+    res.redirect((process.env.CLIENT_URL as string) + '/signin')
     next(error)
   }
 }
@@ -94,9 +94,9 @@ export const getOauthToken = async (
         maxAge: tokenSettings.expireTime * 1000,
         httpOnly: true
       })
-      .redirect('http://localhost:3000')
+      .redirect(process.env.CLIENT_URL as string)
   } catch (error) {
     // console.log(error)
-    res.redirect('http://localhost:3000/signin')
+    res.redirect((process.env.CLIENT_URL as string) + '/signin')
   }
 }

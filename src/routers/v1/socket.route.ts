@@ -5,6 +5,7 @@ import { prisma } from '../../database/postgres'
 import { socketTokenSettings, tokenSettings } from '../../configs'
 import { number } from 'joi'
 import { io } from '../../configs/express'
+import { error } from 'console'
 
 const change: any = {}
 
@@ -44,6 +45,19 @@ export const soketRoute = (io: Server): void => {
   })
 
   io.on('connection', (socket: any) => {
+    void prisma.user
+      .update({
+        where: {
+          id: socket.userId
+        },
+        data: {
+          lastOnline: new Date()
+        }
+      })
+      .catch(error => {
+        console.log(error)
+      })
+
     if (!onlineUsers.includes(socket?.userId)) {
       onlineUsers.push(socket?.userId)
       socket.broadcast.emit('online', socket?.userId)
@@ -63,6 +77,19 @@ export const soketRoute = (io: Server): void => {
     socket.emit('onlineUsers', onlineUsers)
     socket.on('test', (params: any) => {
       console.log(params)
+    })
+
+    //  join posts
+    socket.on('joinPosts', (postIds: any) => {
+      const currentRooms = socket.rooms
+      currentRooms.forEach((roomName: string) => {
+        if (roomName.includes('post_')) {
+          socket.leave(roomName)
+        }
+      })
+      const rooms = postIds.map((postId: any) => 'post_' + (postId as string))
+      socket.join(rooms)
+      // console.log(rooms)
     })
 
     socket.on('addMessage', async ({ message }: any) => {
@@ -111,6 +138,10 @@ export const soketRoute = (io: Server): void => {
           `user_${request?.receiverId as string}`
         ])
         .emit('deleteFriendRequest', request?.id)
+    })
+
+    socket.on('updatePost', (post: any) => {
+      socket.to('post_' + (post.id as string)).emit('updatePost', post)
     })
 
     // calll
@@ -254,6 +285,19 @@ export const soketRoute = (io: Server): void => {
         onlineUsers = onlineUsers.filter((id: number) => id !== socket?.userId)
         socket.broadcast.emit('offline', socket?.userId)
       }
+
+      void prisma.user
+        .update({
+          where: {
+            id: socket.userId
+          },
+          data: {
+            lastOnline: new Date()
+          }
+        })
+        .catch(error => {
+          console.log(error)
+        })
     })
   })
 }
