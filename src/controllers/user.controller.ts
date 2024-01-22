@@ -814,7 +814,6 @@ export const search = async (
 ) => {
   try {
     const q: any = req.query.q
-    console.log({ q })
     const tokens: string[] = q
       .trim()
       .normalize('NFD')
@@ -824,9 +823,11 @@ export const search = async (
       .filter((token: string) => {
         return token.trim().length > 0
       })
-    // if (tokens.length === 1) {
     const users = await prisma.user.findMany({
       where: {
+        id: {
+          not: (req.payload as any).id
+        },
         AND: tokens.map(token => ({
           fullname: {
             contains: token

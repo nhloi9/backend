@@ -10,7 +10,7 @@ router
   .route('/')
   .post(validation.createPost, verifyToken, controller.createPost)
 
-router.get('/home', verifyToken, controller.getHomePosts)
+router.post('/home', verifyToken, controller.getHomePosts)
 router.get('/hashtags', verifyToken, controller.getAllHashtags)
 router.get('/hashtag', verifyToken, controller.getHashtagdPosts)
 router.get('/report', verifyToken, controller.getReportedPosts)

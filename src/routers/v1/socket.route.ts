@@ -2,24 +2,20 @@ import type { Server } from 'socket.io'
 import jwt from 'jsonwebtoken'
 
 import { prisma } from '../../database/postgres'
-import { socketTokenSettings, tokenSettings } from '../../configs'
-import { number } from 'joi'
-import { io } from '../../configs/express'
-import { error } from 'console'
+import { socketTokenSettings } from '../../configs'
 
 const change: any = {}
 
 let onlineUsers: number[] = []
-const users: any = {}
-const calls: any = {}
-const socketToCall: any = {}
 
-// const checkBusyCall = (io: any, userId: number): boolean => {
-//   return (
-//     io?.sockets?.adapter?.rooms?.get('user_' + userId.toString())?.call !==
-//     undefined
-//   )
-// }
+// contain userId and array of socketId
+const users: any = {}
+
+// contain conversationId and array of socketId
+const calls: any = {}
+
+// contain socketId and conversationId
+const socketToCall: any = {}
 
 export const soketRoute = (io: Server): void => {
   io.use(async (socket: any, next) => {
@@ -45,6 +41,9 @@ export const soketRoute = (io: Server): void => {
   })
 
   io.on('connection', (socket: any) => {
+    console.log('connection', socket.id)
+
+    // update last online of user
     void prisma.user
       .update({
         where: {
@@ -58,26 +57,18 @@ export const soketRoute = (io: Server): void => {
         console.log(error)
       })
 
+    // update array online users
     if (!onlineUsers.includes(socket?.userId)) {
       onlineUsers.push(socket?.userId)
       socket.broadcast.emit('online', socket?.userId)
     }
 
+    // update user and list socket of user
     if (users[socket.userId] !== undefined) {
       users[socket.userId].push(socket.id)
     } else users[socket.userId] = [socket.id]
-
-    // const ip = socket.handshake.headers['x-forwarded-for']
-    // socket.conn.remoteAddress.split(':')[3]
-    // console.log(ip)
-    // console.log(socket.request.connection.remoteAddress)
-    // console.log(socket.handshake, socket.handshake.address.port)
-    console.log('connection', socket.id)
-    console.log({ users })
     socket.emit('onlineUsers', onlineUsers)
-    socket.on('test', (params: any) => {
-      console.log(params)
-    })
+    console.log({ users })
 
     //  join posts
     socket.on('joinPosts', (postIds: any) => {
@@ -188,8 +179,12 @@ export const soketRoute = (io: Server): void => {
       console.log({ conversationId })
       if (calls[conversationId] !== undefined) {
         const length = calls[conversationId].length
-        if (length === 4) {
+        if (length >= 4) {
           socket.emit('roomFull')
+          return
+        }
+        if (checkBusy(socket.userId)) {
+          socket.emit('meBusy')
           return
         }
         socketToCall[socket.id] = conversationId
@@ -224,6 +219,7 @@ export const soketRoute = (io: Server): void => {
         socketToCall[socket.id] = undefined
       }
     })
+
     socket.on('getUserFromPeerId', (peerId: string) => {
       const userId = Object.keys(users)?.find(item =>
         users[item]?.includes(peerId)

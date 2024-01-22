@@ -7,7 +7,6 @@ import { friendRepo, notifyRepo, postRepo } from '../repositories'
 import type { RequestPayload } from '../types'
 import { getApiResponse } from '../utils'
 import { prisma } from '../database/postgres'
-import { use } from 'passport'
 
 export const createPost = async (
   req: RequestPayload,
@@ -142,34 +141,55 @@ export const getHomePosts = async (
     const userId = (req.payload as any).id
 
     const friendIds = await friendRepo.findAllFriendIds(userId)
-    // const { oldPosts } = req.body
-    // let posts = await postRepo.getPosts(oldPosts)
-    // posts = posts.map((post: any, index: number) => {
-    //   return {
-    //     ...post
+    const { oldPostIds = [] } = req.body
 
-    //     // ...(numberComments > 5 && {
-    //     //   sampleComment: _.sampleSize(
-    //     //     post.comments,
-    //     //     Math.floor(Math.random() * 4)
-    //     //   )
-    //     // })
-    //   }
-    // })
-    // for (const post of posts) {
-    //   if (post?.shareId !== null) {
-    //     const share = await postRepo.getSinglePost(userId, post.shareId)
-    //     post.share = share
-    //   }
-    // }
-
-    const posts: any = await prisma.post.findMany({
+    const lastReacts = await prisma.postUserReact.findMany({
       where: {
+        userId,
+        id: { notIn: [6, 7] },
+        post: {
+          hashtags: {
+            none: {}
+          }
+        }
+      },
+      select: {
+        post: {
+          select: {
+            hashtags: true
+          }
+        }
+      },
+      orderBy: {},
+      take: 10
+    })
+
+    const hashtags: string[] = []
+    lastReacts.forEach((react: any) => {
+      const hashtag = react?.post?.hashtags?.name
+      if (hashtag !== undefined) {
+        if (!hashtags.includes(hashtag)) {
+          hashtags.push(hashtag)
+        }
+      }
+    })
+
+    let posts: any = await prisma.post.findMany({
+      where: {
+        accepted: true,
+        id: {
+          notIn: oldPostIds
+        },
         OR: [
+          {
+            userId
+          },
           {
             group: {
               OR: [
-                { adminId: userId },
+                {
+                  adminId: userId
+                },
                 {
                   requests: {
                     some: {
@@ -191,14 +211,59 @@ export const getHomePosts = async (
             }
           },
           {
-            userId
+            groupId: null,
+            tags: {
+              some: {
+                id: {
+                  in: friendIds
+                }
+              }
+            },
+            privacy: 'public'
           },
           {
-            privacy: 'public'
+            groupId: null,
+            tags: {
+              some: {
+                id: userId
+              }
+            },
+            OR: [
+              {
+                privacy: 'public'
+              },
+              {
+                privacy: 'friend',
+                userId: {
+                  in: friendIds
+                }
+              }
+            ]
+          },
+          {
+            hashtags: {
+              some: {
+                name: {
+                  in: hashtags
+                }
+              }
+            },
+            privacy: 'public',
+            OR: [
+              {
+                groupId: null
+              },
+              {
+                group: {
+                  privacy: 'public'
+                }
+              }
+            ]
           }
-        ],
-        accepted: true
+        ]
       },
+
+      take: 8,
       include: {
         hashtags: true,
         shareBys: {
@@ -239,15 +304,6 @@ export const getHomePosts = async (
                 avatar: true
               }
             }
-          }
-        },
-        group: {
-          select: {
-            id: true,
-            name: true,
-            description: true,
-            privacy: true,
-            image: true
           }
         },
         comments: {
@@ -297,19 +353,160 @@ export const getHomePosts = async (
             lastname: true,
             avatar: true
           }
+        },
+        group: {
+          select: {
+            id: true,
+            name: true,
+            description: true,
+            privacy: true,
+            image: true,
+            adminId: true
+          }
         }
       }
     })
+    let addedPost: any = []
+
+    if (posts?.length < 5) {
+      const ids = posts.map((post: any) => post.id)
+      // console.log(ids)
+      addedPost = await prisma.post.findMany({
+        where: {
+          id: {
+            notIn: ids
+          },
+          privacy: 'public',
+          OR: [
+            {
+              groupId: null
+            },
+            {
+              group: {
+                privacy: 'public'
+              }
+            }
+          ]
+        },
+
+        take: 5 - posts.length,
+        include: {
+          hashtags: true,
+          shareBys: {
+            select: {
+              createdAt: true,
+
+              id: true,
+              user: {
+                select: {
+                  id: true,
+                  firstname: true,
+                  lastname: true,
+                  avatar: true
+                }
+              }
+            },
+            orderBy: {
+              createdAt: 'desc'
+            }
+          },
+          files: true,
+          user: {
+            select: {
+              id: true,
+              firstname: true,
+              lastname: true,
+              avatar: true
+            }
+          },
+          reacts: {
+            include: {
+              react: true,
+              user: {
+                select: {
+                  id: true,
+                  firstname: true,
+                  lastname: true,
+                  avatar: true
+                }
+              }
+            }
+          },
+          comments: {
+            include: {
+              sender: {
+                select: {
+                  id: true,
+                  firstname: true,
+                  lastname: true,
+                  avatar: {
+                    select: { name: true, url: true }
+                  }
+                }
+              },
+              receiver: {
+                select: {
+                  id: true,
+                  firstname: true,
+                  lastname: true,
+                  avatar: {
+                    select: { name: true, url: true }
+                  }
+                }
+              },
+              reacts: {
+                include: {
+                  user: {
+                    select: {
+                      id: true,
+                      firstname: true,
+                      lastname: true,
+                      avatar: true
+                    }
+                  }
+                }
+              }
+            },
+
+            orderBy: {
+              createdAt: 'desc'
+            }
+          },
+          tags: {
+            select: {
+              id: true,
+              firstname: true,
+              lastname: true,
+              avatar: true
+            }
+          },
+          group: {
+            select: {
+              id: true,
+              name: true,
+              description: true,
+              privacy: true,
+              image: true,
+              adminId: true
+            }
+          }
+        }
+      })
+      // console.log(addedPost)
+    }
+
+    posts = _.sampleSize([...posts, ...addedPost], 5)
     for (const post of posts) {
       if (post?.shareId !== null) {
         const share = await postRepo.getSinglePost(userId, post.shareId)
         post.share = share
       }
     }
+
     res.status(httpStatus.OK).json(
       getApiResponse({
         data: {
-          posts: _.sampleSize(posts, 20)
+          posts
         }
       })
     )
