@@ -41,7 +41,8 @@ const i18n = new I18n()
 
 i18n.configure({
   locales: ['en', 'vi'],
-  directory: path.join(__dirname, '../constants/locales'),
+  // directory: path.join(__dirname, '../constants/locales'),
+  directory: './src/constants/locales',
   defaultLocale: 'en'
 })
 
