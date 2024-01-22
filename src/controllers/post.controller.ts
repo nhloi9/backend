@@ -559,7 +559,11 @@ export const getSinglePost = async (
     const userId = (req.payload as any).id
     const { id } = req.params
 
-    const post = await postRepo.getSinglePost(userId, Number(id))
+    const post = await postRepo.getSinglePost(
+      userId,
+      Number(id),
+      (req.payload as any)?.role === 'admin'
+    )
     if (post === null) {
       return res.status(400).json(
         getApiResponse({
@@ -1525,7 +1529,7 @@ export const getReportedPosts = async (
 
     for (const post of posts) {
       if (post?.shareId !== null) {
-        const share = await postRepo.getSinglePost(userId, post.shareId)
+        const share = await postRepo.getSinglePost(userId, post.shareId, true)
         post.share = share
       }
     }

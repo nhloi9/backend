@@ -1,7 +1,7 @@
 import { prisma } from '../database/postgres'
 import { checkIsFriend } from './friend'
 import { checkIsMember } from './group'
-import { groupRepo } from '.'
+import { groupRepo, userRepo } from '.'
 // import { type IUser } from '../types'
 
 const createPost = async ({
@@ -446,8 +446,19 @@ const getAllPostsOfUser = async (
 ): Promise<any[]> => {
   const posts = await prisma.post.findMany({
     where: {
-      userId: authId,
-      groupId: null
+      groupId: null,
+      OR: [
+        {
+          userId: authId
+        },
+        {
+          tags: {
+            some: {
+              id: authId
+            }
+          }
+        }
+      ]
     },
 
     include: {
@@ -555,14 +566,15 @@ const getAllPostsOfUser = async (
     }
   })
 
-  if (userId === authId) {
-    return posts
+  const returnedPosts = []
+  for (const post of posts) {
+    const getedPost = await getSinglePost(userId, post?.id)
+    if (getedPost !== null) {
+      returnedPosts.push(post)
+    }
   }
 
-  const isFriend = await checkIsFriend(userId, authId)
-  if (isFriend) {
-    return posts?.filter((post: any) => post.privacy !== 'private')
-  } else return posts?.filter((post: any) => post.privacy === 'public')
+  return returnedPosts
 }
 
 const getAllPostsOfGroup = async (
@@ -689,7 +701,11 @@ const getAllPostsOfGroup = async (
   return posts
 }
 
-const getSinglePost = async (userId: number, postId: number): Promise<any> => {
+const getSinglePost = async (
+  userId: number,
+  postId: number,
+  isAdmin = false
+): Promise<any> => {
   const post = await prisma.post.findFirst({
     where: {
       id: postId
@@ -797,6 +813,10 @@ const getSinglePost = async (userId: number, postId: number): Promise<any> => {
     }
   })
 
+  if (isAdmin) {
+    return post
+  }
+
   if (post === null) {
     return null
   }
@@ -818,7 +838,8 @@ const getSinglePost = async (userId: number, postId: number): Promise<any> => {
   const isFriend = await checkIsFriend(userId, post?.userId)
   if ((isFriend && post?.privacy !== 'private') || post?.privacy === 'public') {
     return post
-  } else return null
+  }
+  return null
 }
 
 export {
