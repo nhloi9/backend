@@ -435,7 +435,15 @@ export const logout = async (
   res: Response,
   next: NextFunction
 ) => {
-  res.status(httpStatus.OK).cookie('token', '', { maxAge: 1 }).send('ok')
+  res
+    .status(httpStatus.OK)
+    .cookie('token', '', {
+      maxAge: 1,
+      secure: true,
+      httpOnly: true,
+      sameSite: 'none'
+    })
+    .send('ok')
 }
 
 export const updateAvatar = async (
