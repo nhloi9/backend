@@ -161,7 +161,7 @@ export const getHomePosts = async (
         }
       },
       orderBy: {},
-      take: 10
+      take: 4
     })
 
     const hashtags: string[] = []
@@ -263,7 +263,7 @@ export const getHomePosts = async (
         ]
       },
 
-      take: 8,
+      take: 6,
       include: {
         hashtags: true,
         shareBys: {
