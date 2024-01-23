@@ -29,6 +29,8 @@ router
 
 router.route('/:id/save').post(verifyToken, controller.savePost)
 router.route('/:id/un-save').post(verifyToken, controller.unsavePost)
+router.route('/:id/tag').delete(verifyToken, controller.removeTag)
+
 router.route('/:id/report').post(verifyToken, controller.createReport)
 router.route('/:id/keep').post(verifyToken, controller.keepReportedPost)
 

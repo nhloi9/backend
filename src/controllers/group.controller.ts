@@ -724,3 +724,35 @@ export const getAllFilesOfGroup = async (
     next(error)
   }
 }
+
+export const updateImage = async (
+  req: RequestPayload,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const groupId = Number(req.params.id)
+    const { name, url } = req.body
+
+    await prisma.group.update({
+      where: {
+        adminId: (req.payload as any).id,
+        id: groupId
+      },
+      data: {
+        image: {
+          disconnect: true,
+          create: {
+            name,
+            url
+          }
+        }
+      }
+    })
+    res
+      .status(200)
+      .json(getApiResponse({ msg: "update group's image successfully" }))
+  } catch (error) {
+    next(error)
+  }
+}

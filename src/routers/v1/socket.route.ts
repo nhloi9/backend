@@ -135,6 +135,10 @@ export const soketRoute = (io: Server): void => {
       socket.to('post_' + (post.id as string)).emit('updatePost', post)
     })
 
+    socket.on('deletePost', (postId: number) => {
+      socket.to('post_' + postId?.toString()).emit('deletePost', postId)
+    })
+
     // calll
     socket.on('call', async (payload: any) => {
       const { conversation }: any = payload
@@ -154,6 +158,8 @@ export const soketRoute = (io: Server): void => {
           (item: number) => item !== socket?.userId && users[item] !== undefined
         )
 
+      // console.log({ otherOnlineMemberIds })
+
       if (otherOnlineMemberIds?.length === 0) {
         socket.emit('otherOffline')
         return
@@ -163,6 +169,7 @@ export const soketRoute = (io: Server): void => {
         socket.emit('otherBusy')
         return
       }
+      socket.emit('permissCall')
       calls[conversation.id] = [socket.id]
       socketToCall[socket.id] = conversation.id
       for (const id of otherOnlineMemberIds) {

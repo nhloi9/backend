@@ -254,7 +254,9 @@ export const getUser = async (
       .status(httpStatus.OK)
       .cookie('token', token, {
         maxAge: tokenSettings.expireTime * 1000,
-        httpOnly: true
+        secure: true,
+        httpOnly: true,
+        sameSite: 'none'
       })
       .json(
         getApiResponse({
@@ -421,7 +423,9 @@ export const getOauthToken = async (
     res
       .cookie('token', token, {
         maxAge: tokenSettings.expireTime * 1000,
-        httpOnly: true
+        secure: true,
+        httpOnly: true,
+        sameSite: 'none'
       })
       .redirect(process.env.CLIENT_URL as string)
   } catch (error) {
@@ -734,7 +738,9 @@ export const resetPassword = async (
       .status(httpStatus.OK)
       .cookie('token', token, {
         maxAge: tokenSettings.expireTime * 1000,
-        secure: true
+        secure: true,
+        httpOnly: true,
+        sameSite: 'none'
       })
       .json(
         getApiResponse({

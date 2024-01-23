@@ -35,6 +35,7 @@ router.get('/:id', verifyToken, controller.getGroup)
 router.put('/:id', verifyToken, controller.updateGroup)
 router.get('/:id/pending-posts', verifyToken, controller.getPendingPosts)
 router.get('/:id/files', verifyToken, controller.getAllFilesOfGroup)
+router.put('/:id/image', verifyToken, controller.getAllFilesOfGroup)
 
 router.put('/:id/decline-post', verifyToken, controller.declinePosts)
 router.put('/:id/approve-post', verifyToken, controller.approvePosts)

@@ -646,6 +646,34 @@ export const reactPost = async (
   }
 }
 
+export const removeTag = async (
+  req: RequestPayload,
+  res: Response,
+  next: NextFunction
+) => {
+  const postId = Number(req.params.id)
+  const userId = (req.payload as any).id
+  try {
+    await prisma.post.update({
+      where: {
+        id: postId
+      },
+      data: {
+        tags: {
+          disconnect: [
+            {
+              id: userId
+            }
+          ]
+        }
+      }
+    })
+    res.status(httpStatus.OK).json({ msg: 'Remove tag successfully' })
+  } catch (error) {
+    next(error)
+  }
+}
+
 export const removeReactPost = async (
   req: RequestPayload,
   res: Response,
