@@ -158,19 +158,26 @@ export const getHomePosts = async (
           select: {
             hashtags: true
           }
-        }
+        },
+        userId: true
       },
       orderBy: {},
-      take: 4
+      take: 3
     })
 
     const hashtags: string[] = []
+    const userIds: number[] = []
+
     lastReacts.forEach((react: any) => {
       const hashtag = react?.post?.hashtags?.name
       if (hashtag !== undefined) {
         if (!hashtags.includes(hashtag)) {
           hashtags.push(hashtag)
         }
+      }
+
+      if (!userIds.includes(react.userId)) {
+        userIds.push(react.userId)
       }
     })
 
@@ -181,6 +188,33 @@ export const getHomePosts = async (
           notIn: oldPostIds
         },
         OR: [
+          {
+            hashtags: {
+              some: {
+                name: {
+                  in: hashtags
+                }
+              }
+            },
+            privacy: 'public',
+            OR: [
+              {
+                groupId: null
+              },
+              {
+                group: {
+                  privacy: 'public'
+                }
+              }
+            ]
+          },
+          {
+            userId: {
+              in: userIds
+            },
+            privacy: 'public',
+            groupId: null
+          },
           {
             userId
           },
@@ -263,7 +297,7 @@ export const getHomePosts = async (
         ]
       },
 
-      take: 6,
+      take: 4,
       include: {
         hashtags: true,
         shareBys: {
@@ -368,7 +402,7 @@ export const getHomePosts = async (
     })
     let addedPost: any = []
 
-    if (posts?.length < 5) {
+    if (posts?.length < 4) {
       const ids = posts.map((post: any) => post.id)
       // console.log(ids)
       addedPost = await prisma.post.findMany({
@@ -495,7 +529,7 @@ export const getHomePosts = async (
       // console.log(addedPost)
     }
 
-    posts = _.sampleSize([...posts, ...addedPost], 5)
+    posts = _.sampleSize([...posts, ...addedPost], 3)
     for (const post of posts) {
       if (post?.shareId !== null) {
         const share = await postRepo.getSinglePost(userId, post.shareId)
