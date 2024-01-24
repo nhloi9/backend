@@ -1026,3 +1026,25 @@ export const getAllUsers = async (
     next(error)
   }
 }
+
+export const deleteUser = async (
+  req: RequestPayload,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const { id } = req.params
+    await prisma.user.delete({
+      where: {
+        id: Number(id)
+      }
+    })
+    res.status(200).json(
+      getApiResponse({
+        msg: 'User deleted successfully'
+      })
+    )
+  } catch (error) {
+    next(error)
+  }
+}

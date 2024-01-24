@@ -64,6 +64,10 @@ export const updateGroup = async (
       },
       data: {
         name,
+        enName: name
+          .normalize('NFD')
+          .replace(/[\u0300-\u036f]/g, '')
+          .toLowerCase(),
         privacy,
         description
       }
@@ -397,8 +401,8 @@ export const search = async (
     const q: any = req.query.q
     const tokens: string[] = q
       .trim()
-      // .normalize('NFD')
-      // .replace(/[\u0300-\u036f]/g, '')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
       .toLowerCase()
       .split(' ')
       .filter((token: string) => {
@@ -407,7 +411,7 @@ export const search = async (
     const groups = await prisma.group.findMany({
       where: {
         AND: tokens.map(token => ({
-          name: {
+          enName: {
             contains: token
           }
         }))

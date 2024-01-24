@@ -166,6 +166,7 @@ model Post {
 model Group {
   id Int @id @default(autoincrement())
   name String 
+  enName String?
   description String?
   privacy  accessGroup
   requireApproval Boolean @default(true)
@@ -269,7 +270,7 @@ model Notification {
   senderId Int?
   sender User? @relation("send_notify",fields: [senderId], references: [id])
   receiverId Int
-  receiver User? @relation("receive_notify",fields: [receiverId], references: [id])
+  receiver User? @relation("receive_notify",fields: [receiverId], references: [id], onDelete: Cascade)
   isSeen Boolean @default(false)
   content  String?
   text String?

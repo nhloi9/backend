@@ -1,4 +1,4 @@
-import type { Group, accessGroup } from '@prisma/client'
+import type { accessGroup } from '@prisma/client'
 import { prisma } from '../database/postgres'
 
 const createGroup = async (
@@ -10,6 +10,10 @@ const createGroup = async (
   const group = await prisma.group.create({
     data: {
       name,
+      enName: name
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase(),
       privacy,
       creatorId: userId,
       adminId: userId,

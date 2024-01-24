@@ -2,7 +2,7 @@ import { Router } from 'express'
 
 import { userControllers as controller } from '../../controllers'
 import { userValidation as validation } from '../../validations'
-import { verifyToken } from '../../middlewares'
+import { checkAdmin, verifyToken } from '../../middlewares'
 
 const router = Router()
 
@@ -72,5 +72,6 @@ router.put(
 router.get('/search', validation.searchUser, verifyToken, controller.search)
 router.get('/:id/files', verifyToken, controller.getAllFilesOfUser)
 router.get('/:id/stories', verifyToken, controller.getAllStoriesOfUser)
+router.delete('/:id', verifyToken, checkAdmin, controller.deleteUser)
 
 export default router

@@ -33,6 +33,9 @@ router.use((req: any, res: any, next: any) => {
   next()
 })
 
+router.get('/test', (req: any, res: any, next: any) => {
+  res.status(200).json('Ok')
+})
 router.use('/users', userRouters)
 router.use('/friend-requests', friendRouters)
 router.use('/files', fileRouters)
