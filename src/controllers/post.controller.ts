@@ -184,6 +184,11 @@ export const getHomePosts = async (
     let posts: any = await prisma.post.findMany({
       where: {
         accepted: true,
+        views: {
+          none: {
+            id: userId
+          }
+        },
         id: {
           notIn: oldPostIds
         },
@@ -400,30 +405,143 @@ export const getHomePosts = async (
         }
       }
     })
+
     let addedPost: any = []
 
-    if (posts?.length < 4) {
+    if (posts?.length < 3) {
       const ids = posts.map((post: any) => post.id)
       // console.log(ids)
       addedPost = await prisma.post.findMany({
         where: {
+          accepted: true,
+
           id: {
-            notIn: ids
+            notIn: [...oldPostIds, ...ids]
           },
-          privacy: 'public',
           OR: [
             {
+              hashtags: {
+                some: {
+                  name: {
+                    in: hashtags
+                  }
+                }
+              },
+              privacy: 'public',
+              OR: [
+                {
+                  groupId: null
+                },
+                {
+                  group: {
+                    privacy: 'public'
+                  }
+                }
+              ]
+            },
+            {
+              userId: {
+                in: userIds
+              },
+              privacy: 'public',
               groupId: null
             },
             {
+              userId
+            },
+            {
               group: {
-                privacy: 'public'
+                OR: [
+                  {
+                    adminId: userId
+                  },
+                  {
+                    requests: {
+                      some: {
+                        userId,
+                        status: 'accepted'
+                      }
+                    }
+                  }
+                ]
               }
+            },
+            {
+              groupId: null,
+              userId: {
+                in: friendIds
+              },
+              privacy: {
+                not: 'private'
+              }
+            },
+            {
+              groupId: null,
+              tags: {
+                some: {
+                  id: {
+                    in: friendIds
+                  }
+                }
+              },
+              privacy: 'public'
+            },
+            {
+              groupId: null,
+              tags: {
+                some: {
+                  id: userId
+                }
+              },
+              OR: [
+                {
+                  privacy: 'public'
+                },
+                {
+                  privacy: 'friend',
+                  userId: {
+                    in: friendIds
+                  }
+                }
+              ]
+            },
+            {
+              hashtags: {
+                some: {
+                  name: {
+                    in: hashtags
+                  }
+                }
+              },
+              privacy: 'public',
+              OR: [
+                {
+                  groupId: null
+                },
+                {
+                  group: {
+                    privacy: 'public'
+                  }
+                }
+              ]
+            },
+            {
+              privacy: 'public',
+              OR: [
+                {
+                  groupId: null
+                },
+                {
+                  group: {
+                    privacy: 'public'
+                  }
+                }
+              ]
             }
           ]
         },
 
-        take: 5 - posts.length,
+        take: 3 - posts.length,
         include: {
           hashtags: true,
           shareBys: {
@@ -1747,6 +1865,36 @@ export const getAllHashtags = async (
     res.status(httpStatus.OK).json(
       getApiResponse({
         data: { hashtags }
+      })
+    )
+  } catch (error) {
+    next(error)
+  }
+}
+
+export const viewPost = async (
+  req: RequestPayload,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const userId = (req.payload as any).id
+    const { id } = req.params
+    await prisma.post.update({
+      where: {
+        id: Number(id)
+      },
+      data: {
+        views: {
+          connect: {
+            id: userId
+          }
+        }
+      }
+    })
+    res.status(httpStatus.OK).json(
+      getApiResponse({
+        msg: 'View post successfully'
       })
     )
   } catch (error) {

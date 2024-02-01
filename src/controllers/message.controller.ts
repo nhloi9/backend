@@ -15,17 +15,18 @@ export const createMessage = async (
     await prisma.$transaction(async tx => {
       const { conversationId, text, files } = req.body
       const userId = (req.payload as any).id
-      const conversationMember = await tx.conversationMember.findFirst({
+      const conversationMember = await tx.conversationMember.update({
         where: {
-          conversationId,
-          userId
+          conversationId_userId: {
+            conversationId,
+            userId
+          }
+        },
+        data: {
+          active: true
         }
       })
-      if (conversationMember === null) {
-        return res
-          .status(400)
-          .json(getApiResponse({ msg: 'No conversation match' }))
-      }
+
       const message = await tx.message.create({
         data: {
           text,

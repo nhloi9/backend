@@ -13,9 +13,16 @@ datasource db {
 
 model User {
   id       Int @id @default(autoincrement())
+  blocks User[] @relation("block")
+  blockBys User[] @relation("block")
+
+  // mesBlocks User[] @relation("mesBlock")
+  // mesBlockBys User[] @relation("mesBlock")
   
   savedPost Post[] @relation("save")
   active Boolean @default(true)
+  views Post[] @relation("view")
+
   
   avatar File? 
   firstname String 
@@ -149,6 +156,7 @@ model Post {
   share Post? @relation("share", fields: [shareId], references: [id], onDelete: SetNull)
   shareBys Post[] @relation("share")
   tags User[] @relation("tag")
+  views User[] @relation("view")
   feel Json?
   accepted Boolean? @default(true)
   groupId Int?
@@ -214,11 +222,13 @@ model Conversation {
   members ConversationMember[]
   lastMessage Json?
   image File?
+ 
    @@map("conversations")
    updatedAt DateTime @updatedAt
 }
 
 model ConversationMember{
+  
   id Int @id @default(autoincrement())
   conversationId Int
   conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
@@ -227,6 +237,8 @@ model ConversationMember{
   createdAt DateTime @default(now())
   isSeen  Boolean @default(false)
   isAdmin Boolean @default(false)
+   active Boolean @default(true)
+  block Boolean @default(false)
   messages Message[]
   @@unique([conversationId, userId])
 
@@ -420,11 +432,7 @@ model Hashtag {
   @@map("hashtags")
 }
 
-// model  ViewStory {
-//   id Int @id @default(autoincrement())
-//   userId Int
-//   storyId Int
-// }
+
 
 
 

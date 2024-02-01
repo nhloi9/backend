@@ -5,6 +5,7 @@ import type { RequestPayload } from '../types'
 import { getApiResponse } from '../utils'
 import { prisma } from '../database/postgres'
 import { Prisma } from '@prisma/client'
+import { checkIsFriend } from '../repositories/friend'
 
 export const createConversation = async (
   req: RequestPayload,
@@ -29,6 +30,8 @@ export const createConversation = async (
         }
       })
       if (existingConversation === null) {
+        const isFriend = await checkIsFriend(userId, members[0])
+
         conversation = await prisma.conversation.create({
           data: {
             members: {
@@ -36,9 +39,10 @@ export const createConversation = async (
                 data: [
                   {
                     userId,
-                    isAdmin: true
+                    isAdmin: true,
+                    active: isFriend
                   },
-                  { userId: members[0] }
+                  { userId: members[0], active: isFriend }
                 ]
               }
             }

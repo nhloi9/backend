@@ -1,22 +1,14 @@
 import { type Response, type NextFunction } from 'express'
 import httpStatus from 'http-status'
-// import aposToLexForm from 'apos-to-lex-form'
 import expandContractions from '@stdlib/nlp-expand-contractions'
 import natural from 'natural'
 import * as SW from 'stopword'
-// import SpellCorrector from 'spelling-corrector'
-// import SpellChecker from 'spellchecker'
-// import SpellChecker from 'simple-spellchecker';
-// import dictionary from 'dictionary-en'
 
-// import nspell from 'nspell'
-// nspell('d')
-import { commentRepo } from '../repositories'
-// import type { RequestPayload } from '../types'
+import { commentRepo, notifyRepo } from '../repositories'
 import { getApiResponse } from '../utils'
-// import Spellchecker from 'hunspell-spellchecker'
 import type { RequestPayload } from '../types'
 import { prisma } from '../database/postgres'
+import { error } from 'console'
 
 // const spellchecker = new Spellchecker()
 // spellchecker.suggest('hello')
@@ -27,6 +19,7 @@ export const createComment = async (
   next: NextFunction
 ) => {
   const { content, receiverId, parentId, postId } = req.body
+  const userId = (req.payload as any).id
 
   try {
     if (analysisSentiment(content) < 0) {
@@ -43,6 +36,81 @@ export const createComment = async (
       postId,
       senderId: (req.payload as any).id
     })
+
+    const post = await prisma.post.findUnique({
+      where: {
+        id: postId
+      }
+    })
+
+    if (userId !== post?.userId) {
+      prisma.post
+        .update({
+          where: {
+            id: postId
+          },
+          data: {
+            views: {
+              disconnect: {
+                id: post?.userId
+              }
+            }
+          }
+        })
+        .catch(error => {
+          console.log(error)
+        })
+    }
+
+    if (receiverId !== undefined && receiverId !== null) {
+      if (userId !== receiverId) {
+        prisma.post
+          .update({
+            where: {
+              id: postId
+            },
+            data: {
+              views: {
+                disconnect: {
+                  id: receiverId
+                }
+              }
+            }
+          })
+          .catch(error => {
+            console.log(error)
+          })
+      }
+    }
+
+    if (receiverId !== undefined && receiverId !== null) {
+      if (receiverId !== userId) {
+        await notifyRepo.createNotify({
+          notifyData: {
+            text: 'responded to your comment',
+            url:
+              (process.env.CLIENT_URL as string) + `/post/${postId as string}`,
+            content
+          },
+
+          senderId: userId,
+          receiverId
+        })
+      }
+    } else {
+      if (userId !== post?.userId) {
+        await notifyRepo.createNotify({
+          notifyData: {
+            text: 'commented in your post',
+            url:
+              (process.env.CLIENT_URL as string) + `/post/${postId as string}`,
+            content
+          },
+          senderId: userId,
+          receiverId: post?.userId
+        })
+      }
+    }
     res.status(httpStatus.OK).json(
       getApiResponse({
         data: { comment }
